@@ -10,7 +10,7 @@ import {
   Typography,
   Grid,
 } from "@mui/material";
-import '@fortawesome/fontawesome-free/css/all.min.css';
+import "@fortawesome/fontawesome-free/css/all.min.css";
 import ChangeMapView from "./components/ChangeMapView";
 
 // Fix marker icon issue in Leaflet
@@ -35,7 +35,7 @@ const App = () => {
 
   // Function to fetch city coordinates using OpenWeatherMap API
   const fetchCoordinates = async (city, isStartLocation = true) => {
-    const url = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${openWeatherMapAPIKey}`;
+    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${openWeatherMapAPIKey}`;
     try {
       const response = await axios.get(url);
       if (response.data.length > 0) {
@@ -77,7 +77,7 @@ const App = () => {
           Best Route
         </Typography>
         <Typography variant="body1" gutterBottom>
-           Enter a starting and destination city, and find the route between
+          Enter a starting and destination city, and find the route between
           them!
         </Typography>
       </Box>
