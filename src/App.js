@@ -1,18 +1,19 @@
 import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import axios from "axios";
+import L from "leaflet";
 import {
   TextField,
   Button,
   Container,
   Box,
   Typography,
-  CircularProgress,
+  Grid,
 } from "@mui/material";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import ChangeMapView from "./components/ChangeMapView";
 
-
+// Fix marker icon issue in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -22,83 +23,62 @@ L.Icon.Default.mergeOptions({
 });
 
 const App = () => {
-  const [city, setCity] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
-  const [coordinates, setCoordinates] = useState([51.505, -0.09]); 
+  const [startCity, setStartCity] = useState("");
+  const [endCity, setEndCity] = useState("");
+  const [startCoordinates, setStartCoordinates] = useState([51.505, -0.09]); // Default to London
+  const [endCoordinates, setEndCoordinates] = useState([51.505, -0.09]); // Default to London
   const [zoom, setZoom] = useState(13);
-  const [loading, setLoading] = useState(false);
 
-  const apiKey = "1e00ee3e43b54ad4ac7ecf2ca15d4b5d"; 
+  const openWeatherMapAPIKey = "4e2f67ffeb1a3f3c50a8cecf46149bd0";
+  const mapboxAccessToken =
+    "pk.eyJ1Ijoic2F1cmFiaDE4MDkiLCJhIjoiY20ybjhxNm5tMDJraDJtc2Nkdzg3bjVweCJ9.2KWRR4TMU-OhGdB9pVFR3g";
 
-  const fetchSuggestions = async (input) => {
-    if (!input) {
-      setSuggestions([]);
-      return;
-    }
-    const url = `https://api.opencagedata.com/geocode/v1/json?q=${input}&key=${apiKey}&limit=5`;
-
+  // Function to fetch city coordinates using OpenWeatherMap API
+  const fetchCoordinates = async (city, isStartLocation = true) => {
+    const url = `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${openWeatherMapAPIKey}`;
     try {
       const response = await axios.get(url);
-      setSuggestions(response.data.results);
+      if (response.data.length > 0) {
+        const { lat, lon } = response.data[0];
+        if (isStartLocation) {
+          setStartCoordinates([lat, lon]);
+        } else {
+          setEndCoordinates([lat, lon]);
+        }
+      } else {
+        console.error("City not found.");
+      }
     } catch (error) {
-      console.error("Error fetching city suggestions:", error);
+      console.error("Error fetching coordinates:", error);
     }
   };
 
-  const fetchCityCoordinates = async () => {
-    if (!city) return;
+  const handleRouteCalculation = () => {
+    if (!startCity || !endCity) return;
 
-    const url = `https://api.opencagedata.com/geocode/v1/json?q=${city}&key=${apiKey}`;
-    setLoading(true);
-
-    try {
-      const response = await axios.get(url);
-      const { lat, lng } = response.data.results[0].geometry;
-      setCoordinates([lat, lng]);
-      setZoom(13);
-      setSuggestions([]);
-    } catch (error) {
-      console.error("Error fetching city coordinates:", error);
-    } finally {
-      setLoading(false);
-    }
+    fetchCoordinates(startCity, true);
+    fetchCoordinates(endCity, false);
   };
 
-  const handleSelect = (suggestion) => {
-    const { lat, lng } = suggestion.geometry;
-    setCoordinates([lat, lng]);
-    setZoom(13);
-    setSuggestions([]);
-    setCity(suggestion.formatted); 
-  };
+  const handleSwapLocations = () => {
+    const tempCity = startCity;
+    setStartCity(endCity);
+    setEndCity(tempCity);
 
-  const handleInputChange = (event) => {
-    const value = event.target.value;
-    setCity(value);
-    fetchSuggestions(value);
-  };
-
-  const handleKeyPress = (event) => {
-    if (event.key === "Enter") {
-      fetchCityCoordinates(); 
-    }
-  };
-
-  
-  const ChangeMapView = ({ center }) => {
-    const map = useMap();
-    map.setView(center, zoom);
-    return null;
+    const tempCoordinates = startCoordinates;
+    setStartCoordinates(endCoordinates);
+    setEndCoordinates(tempCoordinates);
   };
 
   return (
     <Container>
       <Box mt={5} textAlign="center">
         <Typography variant="h4" gutterBottom>
-          Maps
+          Best Route
         </Typography>
         <Typography variant="body1" gutterBottom>
-          Find a city or place in just one click on the map.
+           Enter a starting and destination city, and find the route between
+          them!
         </Typography>
       </Box>
 
@@ -109,55 +89,55 @@ const App = () => {
         flexDirection="column"
         my={3}
       >
-        <TextField
-          fullWidth
-          label="Enter a City or Place"
-          variant="outlined"
-          value={city}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress} 
-          sx={{ width: "100%", maxWidth: 500, mb: 2 }}
-        />
-        <div style={{ position: "relative", width: "100%", maxWidth: 500 }}>
-          {loading && <CircularProgress />}
-          {suggestions.length > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                backgroundColor: "#fff",
-                border: "1px solid #ccc",
-                zIndex: 1000,
-              }}
-            >
-              {suggestions.map((suggestion, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleSelect(suggestion)}
-                  style={{
-                    padding: "10px",
-                    cursor: "pointer",
-                    backgroundColor: "#f9f9f9",
-                    borderBottom: "1px solid #ddd",
-                  }}
-                >
-                  {suggestion.formatted}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <Grid container spacing={2} justifyContent="center">
+          <Grid item xs={12} md={5}>
+            <TextField
+              fullWidth
+              label="Enter Starting City"
+              variant="outlined"
+              value={startCity}
+              onChange={(e) => setStartCity(e.target.value)}
+              sx={{ width: "100%", mb: 2 }}
+            />
+          </Grid>
 
-       
+          <Grid
+            item
+            xs={12}
+            md={2}
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSwapLocations}
+              sx={{ height: "100%" }}
+            >
+              Swap Locations
+            </Button>
+          </Grid>
+
+          <Grid item xs={12} md={5}>
+            <TextField
+              fullWidth
+              label="Enter Destination City"
+              variant="outlined"
+              value={endCity}
+              onChange={(e) => setEndCity(e.target.value)}
+              sx={{ width: "100%", mb: 2 }}
+            />
+          </Grid>
+        </Grid>
+
         <Button
           variant="contained"
           color="primary"
-          onClick={fetchCityCoordinates} 
+          onClick={handleRouteCalculation}
           sx={{ mt: 2 }}
         >
-          Locate City
+          Calculate Route
         </Button>
       </Box>
 
@@ -166,22 +146,30 @@ const App = () => {
           height: "500px",
           width: "100%",
           mt: 3,
-          border: "4px solid #3f51b5", 
+          border: "2px solid #3f51b5",
           borderRadius: "8px",
-          overflow: "hidden", 
+          overflow: "hidden",
         }}
       >
         <MapContainer
-          center={coordinates}
+          center={startCoordinates}
           zoom={zoom}
           style={{ height: "100%", width: "100%" }}
         >
-          
-          <ChangeMapView center={coordinates} />
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          <ChangeMapView
+            center={startCoordinates}
+            zoom={zoom}
+            start={startCoordinates}
+            end={endCoordinates}
+            mapboxAccessToken={mapboxAccessToken}
           />
-          <Marker position={coordinates}></Marker>
+          <TileLayer
+            url={`https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=${mapboxAccessToken}`}
+            id="mapbox/streets-v11"
+            attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+          />
+          <Marker position={startCoordinates} />
+          <Marker position={endCoordinates} />
         </MapContainer>
       </Box>
     </Container>
